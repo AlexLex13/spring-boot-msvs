@@ -1,9 +1,0 @@
-[submodule "clinic-service"]
-	path = clinic-service
-	url = .\\clinic-service\\
-[submodule "inventory-service"]
-	path = inventory-service
-	url = .\\inventory-service\\
-[submodule "order-service"]
-	path = order-service
-	url = .\\order-service\\
