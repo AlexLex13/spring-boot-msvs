@@ -15,7 +15,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Order {
-    @Id@GeneratedValue(strategy = GenerationType.AUTO)
+    @Id@GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String orderNumber;
     @OneToMany(cascade = CascadeType.ALL)
