@@ -29,8 +29,13 @@ public class OrderService {
 
         order.setOrderLineItemsList(orderLineItems);
 
+        List<String> codes = order.getOrderLineItemsList().stream()
+                .map(OrderLineItems::getCode)
+                .toList();
+
         Boolean result = webClient.get()
-                .uri("http://localhost:8082/api/inventory")
+                .uri("http://localhost:8082/api/inventory",
+                        uriBuilder -> uriBuilder.queryParam("code", codes).build())
                 .retrieve()
                 .bodyToMono(Boolean.class)
                 .block();
