@@ -1,5 +1,6 @@
 package com.alexexe.orderservice.service;
 
+import com.alexexe.orderservice.dto.InventoryResponse;
 import com.alexexe.orderservice.dto.OrderLineItemsDto;
 import com.alexexe.orderservice.dto.OrderRequest;
 import com.alexexe.orderservice.model.Order;
@@ -10,7 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 @Service
 @RequiredArgsConstructor
@@ -33,14 +36,17 @@ public class OrderService {
                 .map(OrderLineItems::getCode)
                 .toList();
 
-        Boolean result = webClient.get()
+        InventoryResponse[] inventoryResponsesArray = webClient.get()
                 .uri("http://localhost:8082/api/inventory",
                         uriBuilder -> uriBuilder.queryParam("code", codes).build())
                 .retrieve()
-                .bodyToMono(Boolean.class)
+                .bodyToMono(InventoryResponse[].class)
                 .block();
 
-        if (result){
+        boolean allProductsInStock = Arrays.stream(Objects.requireNonNull(inventoryResponsesArray))
+                .allMatch(InventoryResponse::isInStock);
+
+        if (allProductsInStock){
             orderRepository.save(order);
         } else {
             throw new IllegalArgumentException("Product is not in stock, please try again later");
