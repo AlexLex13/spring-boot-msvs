@@ -1,5 +1,6 @@
 package com.alexexe.inventoryservice.service;
 
+import com.alexexe.inventoryservice.dto.InventoryResponse;
 import com.alexexe.inventoryservice.repository.InventoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -12,7 +13,13 @@ import java.util.List;
 public class InventoryService {
     private final InventoryRepository inventoryRepository;
     @Transactional(readOnly = true)
-    public boolean isInStock(List<String> code){
-        return inventoryRepository.findByCodeIn(code).stream();
+    public List<InventoryResponse> isInStock(List<String> code){
+        return inventoryRepository.findByCodeIn(code).stream()
+                .map(inventory ->
+                        InventoryResponse.builder()
+                                .code(inventory.getCode())
+                                .isInStock(inventory.getQuantity() > 0)
+                                .build()
+                ).toList();
     }
 }
