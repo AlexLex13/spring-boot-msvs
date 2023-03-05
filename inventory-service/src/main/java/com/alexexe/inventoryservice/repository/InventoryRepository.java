@@ -3,8 +3,8 @@ package com.alexexe.inventoryservice.repository;
 import com.alexexe.inventoryservice.model.Inventory;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.Optional;
+import java.util.List;
 
 public interface InventoryRepository extends JpaRepository<Inventory, Long> {
-    Optional<Inventory> findByCode(String code);
+    List<Inventory> findByCodeIn(List<String> code);
 }
