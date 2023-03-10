@@ -1,5 +1,7 @@
 package com.alexexe.orderservice.service;
 
+import brave.Span;
+import brave.Tracer;
 import com.alexexe.orderservice.dto.InventoryResponse;
 import com.alexexe.orderservice.dto.OrderLineItemsDto;
 import com.alexexe.orderservice.dto.OrderRequest;
@@ -7,6 +9,7 @@ import com.alexexe.orderservice.model.Order;
 import com.alexexe.orderservice.model.OrderLineItems;
 import com.alexexe.orderservice.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -18,9 +21,11 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class OrderService {
     private final OrderRepository orderRepository;
     private final WebClient.Builder webClientBuilder;
+    private final Tracer tracer;
     public String placeOrder(OrderRequest orderRequest){
         Order order = new Order();
         order.setOrderNumber(UUID.randomUUID().toString());
@@ -36,21 +41,30 @@ public class OrderService {
                 .map(OrderLineItems::getCode)
                 .toList();
 
-        InventoryResponse[] inventoryResponsesArray = webClientBuilder.build().get()
-                .uri("http://inventory-service/api/inventory",
-                        uriBuilder -> uriBuilder.queryParam("code", codes).build())
-                .retrieve()
-                .bodyToMono(InventoryResponse[].class)
-                .block();
+        log.info("Calling inventory service");
 
-        boolean allProductsInStock = Arrays.stream(Objects.requireNonNull(inventoryResponsesArray))
-                .allMatch(InventoryResponse::isInStock);
+        Span inventoryServiceLookup = tracer.nextSpan().name("InventoryServiceLookup");
 
-        if (allProductsInStock){
-            orderRepository.save(order);
-            return "Order Placed successfully";
-        } else {
-            throw new IllegalArgumentException("Product is not in stock, please try again later");
+        try(Tracer.SpanInScope spanInScope = tracer.withSpanInScope(inventoryServiceLookup.start())){
+
+            InventoryResponse[] inventoryResponsesArray = webClientBuilder.build().get()
+                    .uri("http://inventory-service/api/inventory",
+                            uriBuilder -> uriBuilder.queryParam("code", codes).build())
+                    .retrieve()
+                    .bodyToMono(InventoryResponse[].class)
+                    .block();
+
+            boolean allProductsInStock = Arrays.stream(Objects.requireNonNull(inventoryResponsesArray))
+                    .allMatch(InventoryResponse::isInStock);
+
+            if (allProductsInStock){
+                orderRepository.save(order);
+                return "Order Placed successfully";
+            } else {
+                throw new IllegalArgumentException("Product is not in stock, please try again later");
+            }
+        } finally {
+            inventoryServiceLookup.finish();
         }
     }
     private OrderLineItems mapToDto(OrderLineItemsDto orderLineItemsDto){
