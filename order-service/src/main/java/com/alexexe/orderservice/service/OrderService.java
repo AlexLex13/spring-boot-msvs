@@ -5,6 +5,7 @@ import brave.Tracer;
 import com.alexexe.orderservice.dto.InventoryResponse;
 import com.alexexe.orderservice.dto.OrderLineItemsDto;
 import com.alexexe.orderservice.dto.OrderRequest;
+import com.alexexe.orderservice.event.OrderPlacedEvent;
 import com.alexexe.orderservice.model.Order;
 import com.alexexe.orderservice.model.OrderLineItems;
 import com.alexexe.orderservice.repository.OrderRepository;
@@ -27,7 +28,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final WebClient.Builder webClientBuilder;
     private final Tracer tracer;
-    private final KafkaTemplate kafkaTemplate;
+    private final KafkaTemplate<String, OrderPlacedEvent> kafkaTemplate;
     public String placeOrder(OrderRequest orderRequest){
         Order order = new Order();
         order.setOrderNumber(UUID.randomUUID().toString());
@@ -61,7 +62,7 @@ public class OrderService {
 
             if (allProductsInStock){
                 orderRepository.save(order);
-                kafkaTemplate.send("notificationTopic", order.getOrderNumber());
+                kafkaTemplate.send("notificationTopic", new OrderPlacedEvent(order.getOrderNumber()));
                 return "Order Placed successfully";
             } else {
                 throw new IllegalArgumentException("Product is not in stock, please try again later");
